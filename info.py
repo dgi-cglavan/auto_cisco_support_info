@@ -34,12 +34,6 @@ with open("device_info.csv", mode="w", encoding="utf-8") as csv_file:
     writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
     writer.writeheader()
 
-#"""Define API rate limits"""
-#call_int = 60
-#call_max = 300
-
-#@sleep_and_retry
-#@limits(calls=call_max, period=call_int)
 def all_the_things(task):
     """It does all the things"""
     task1_result = task.run(
