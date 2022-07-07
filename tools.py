@@ -103,11 +103,7 @@ def sn2info(serial: str, token: str):
     coverage["covered"] = (
             Dq(content).contains("is_covered").get_values("is_covered", 0)
     )
-    #coverage["end_date"] = (
-    #        Dq(content).contains("coverage_end_date").get_values("coverage_end_date", 0)
-    #)
     if coverage["covered"] == "NO":
-    #if content["serial_numbers"][0]["is_covered"] == "NO":
         coverage["end_date"] = "N/A"
     else:
         coverage["end_date"] = (
