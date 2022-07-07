@@ -2,7 +2,11 @@
 import os
 import requests
 from genie.utils import Dq
+from ratelimit import limits, RateLimitException, sleep_and_retry
 
+"""Define API rate limits"""
+call_int = 1
+call_max = 5
 
 def nornir_set_creds(norn, username=None, password=None):
     """
@@ -18,13 +22,17 @@ def nornir_set_creds(norn, username=None, password=None):
         host_obj.username = username
         host_obj.password = password
 
+    #for host in norn.inventory.hosts.keys():
+    #    norn.inventory.hosts[host].connection_options['napalm'].extras['optional_args']['secret'] = os.environ.get("NORNIR_SECRET")
+
 
 def manu_year_cisco(value: str):
     """Calculates manufacture date from Cisco SN"""
     date = int(value[3:5])
     return f"{date + 1996}"
 
-
+@sleep_and_retry
+@limits(calls=call_max, period=call_int)
 def product_info(serial: str, token: str):
     """Return ths base part ID from a serial number"""
     headers = {"Authorization": f"Bearer {token}"}
@@ -33,7 +41,8 @@ def product_info(serial: str, token: str):
     content = req.json()
     return Dq(content).contains("base_pid").get_values("base_pid", 0)
 
-
+@sleep_and_retry
+@limits(calls=call_max, period=call_int)
 def eox(serial: str, token: str):
     """Returns all eox information and replacement option from serial number"""
     device = {}
@@ -65,7 +74,8 @@ def eox(serial: str, token: str):
         )
     return device
 
-
+@sleep_and_retry
+@limits(calls=call_max, period=call_int)
 def software_release(productid: str, token: str):
     """Returns a list of reccomended software from product ID"""
     headers = {"Authorization": f"Bearer {token}"}
@@ -80,3 +90,30 @@ def software_release(productid: str, token: str):
     if upgrade == []:
         upgrade = "Image Not Found"
     return upgrade
+
+@sleep_and_retry
+@limits(calls=call_max, period=call_int)
+def sn2info(serial: str, token: str):
+    """Returns coverage information from serial number"""
+    coverage = {}
+    headers = {"Authorization": f"Bearer {token}"}
+    url = f"https://api.cisco.com/sn2info/v2/coverage/status/serial_numbers/{serial}"
+    req = requests.request("GET", url, headers=headers)
+    content = req.json()
+    coverage["covered"] = (
+            Dq(content).contains("is_covered").get_values("is_covered", 0)
+    )
+    #coverage["end_date"] = (
+    #        Dq(content).contains("coverage_end_date").get_values("coverage_end_date", 0)
+    #)
+    if coverage["covered"] == "NO":
+    #if content["serial_numbers"][0]["is_covered"] == "NO":
+        coverage["end_date"] = "N/A"
+    else:
+        coverage["end_date"] = (
+            Dq(content).contains("coverage_end_date").get_values("coverage_end_date", 0)
+        )
+    if coverage["covered"] == []:
+        coverage["covered"] = "Unknown"
+        coverage["end_date"] = "Unknown"
+    return coverage

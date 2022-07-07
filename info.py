@@ -3,7 +3,9 @@ import csv
 import yaml
 from nornir import InitNornir
 from nornir_napalm.plugins.tasks import napalm_get
-from tools import manu_year_cisco, nornir_set_creds, product_info, software_release, eox
+from tools import manu_year_cisco, nornir_set_creds, product_info, software_release, eox, sn2info
+#from tools import manu_year_cisco, nornir_set_creds, eox, sn2info
+#from ratelimit import limits, RateLimitException, sleep_and_retry
 
 
 with open("./credentials.yaml", encoding="utf-8") as file:
@@ -19,6 +21,8 @@ with open("device_info.csv", mode="w", encoding="utf-8") as csv_file:
         "Base_PID",
         "Replacement",
         "Serial",
+        "Covered",
+        "Coverage Ends",
         "EoS",
         "EoSM",
         "LDoS",
@@ -30,7 +34,12 @@ with open("device_info.csv", mode="w", encoding="utf-8") as csv_file:
     writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
     writer.writeheader()
 
+#"""Define API rate limits"""
+#call_int = 60
+#call_max = 300
 
+#@sleep_and_retry
+#@limits(calls=call_max, period=call_int)
 def all_the_things(task):
     """It does all the things"""
     task1_result = task.run(
@@ -47,6 +56,7 @@ def all_the_things(task):
     base_pid = product_info(serial, my_token)
     upgrade = software_release(base_pid, my_token)
     my_eox = eox(serial, my_token)
+    coverage = sn2info(serial, my_token)
 
     with open("device_info.csv", mode="a", encoding="utf-8") as myfile:
         write = csv.DictWriter(myfile, fieldnames=fieldnames)
@@ -60,6 +70,8 @@ def all_the_things(task):
                 "Manufacture Year": manu_year,
                 "Base_PID": base_pid,
                 "Recommended SW": upgrade,
+                "Covered": coverage["covered"],
+                "Coverage Ends": coverage["end_date"],
                 "EoS": my_eox["eos"],
                 "EoSM": my_eox["eosm"],
                 "LDoS": my_eox["ldos"],
